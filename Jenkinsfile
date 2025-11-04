@@ -1,0 +1,33 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Clone Repository') {
+            steps {
+                git branch: 'main', url: 'https://github.com/vignesh-lnp/docker-jenkins-demo.git'
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                sh 'npm install'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build -t docker-jenkins-demo .'
+            }
+        }
+
+        stage('Run Docker Container') {
+            steps {
+                sh '''
+                    docker stop docker-jenkins-demo || true
+                    docker rm docker-jenkins-demo || true
+                    docker run -d --name docker-jenkins-demo -p 3000:3000 docker-jenkins-demo
+                '''
+            }
+        }
+    }
+}
