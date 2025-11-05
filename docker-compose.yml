@@ -11,6 +11,8 @@ services:
       - jenkins_home:/var/jenkins_home
     restart: unless-stopped
     user: "1000:1000"
+    networks:
+      - appnet
 
   redis:
     image: redis:latest
@@ -18,6 +20,8 @@ services:
     ports:
       - "6379:6379"
     restart: unless-stopped
+    networks:
+      - appnet
 
   nginx:
     image: nginx:latest
@@ -27,6 +31,8 @@ services:
     volumes:
       - /home/vicky/appnew:/usr/share/nginx/html:ro
     restart: unless-stopped
+    networks:
+      - appnet
 
   sample-app:
     image: node:18
@@ -37,7 +43,48 @@ services:
       - /home/vicky/appnew:/usr/src/app
     command: sh -c "cd /usr/src/app && npm install && node index.js"
     restart: unless-stopped
+    networks:
+      - appnet
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - /home/vicky/appnew/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+    networks:
+      - appnet
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    ports:
+      - "3001:3000"
+    restart: unless-stopped
+    networks:
+      - appnet
+
+  buggy-app:
+    build: ./buggy-app
+    container_name: buggy-app
+    ports:
+      - "5000:5000"
+    depends_on:
+      - sample-app
+    restart: unless-stopped
+    networks:
+      - appnet
 
 volumes:
   jenkins_home:
+
+networks:
+  appnet:
+    driver: bridge
 
