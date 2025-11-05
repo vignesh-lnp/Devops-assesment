@@ -1,4 +1,4 @@
-name: Local CI/CD with Minikube
+name: CI/CD to Minikube
 
 on:
   push:
@@ -9,35 +9,50 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout code
+      # Checkout code
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Step 2: Set up Node.js
+      # Set up Node.js
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
 
-      # Step 3: Install dependencies
+      # Install dependencies
       - name: Install dependencies
         run: npm install
 
-      # Step 4: Run tests
+      # Run tests
       - name: Run tests
-        run: npm test || echo "No tests, skipping"
+        run: npm test
 
-      # Step 5: Build Docker image locally
+      # Log in to Docker Hub
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # Build Docker image
       - name: Build Docker image
-        run: docker build -t docker-jenkins-demo:latest .
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/docker-jenkins-demo:latest .
 
-      # Step 6: Load Docker image into Minikube
-      - name: Load image into Minikube
+      # Push Docker image to Docker Hub
+      - name: Push Docker image
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/docker-jenkins-demo:latest
+
+      # Ensure Minikube is running
+      - name: Start Minikube if needed
         run: |
           minikube status || minikube start --driver=docker
-          minikube image load docker-jenkins-demo:latest
 
-      # Step 7: Setup kubeconfig for local Minikube
+      # Pull image from Docker Hub into Minikube
+      - name: Load Docker Hub image into Minikube
+        run: |
+          minikube image pull ${{ secrets.DOCKER_USERNAME }}/docker-jenkins-demo:latest
+
+      # Setup kubeconfig
       - name: Setup kubeconfig
         run: |
           export KUBECONFIG=$HOME/.kube/config
@@ -45,7 +60,7 @@ jobs:
           kubectl config get-contexts
           kubectl cluster-info
 
-      # Step 8: Deploy to Minikube
+      # Deploy to Minikube
       - name: Deploy to Kubernetes
         run: |
           kubectl apply -f deployment.yaml
